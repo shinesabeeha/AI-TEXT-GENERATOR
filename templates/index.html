@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Text Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="container">
+    <h1>AI Text Generator 🎤</h1>
+
+    <div id="chat-box"></div>
+
+    <div class="input-area">
+        <textarea id="user-input" placeholder="Type or speak..."></textarea>
+        <button onclick="startListening()">🎤</button>
+        <button onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<script>
+const chatBox = document.getElementById("chat-box");
+const inputField = document.getElementById("user-input");
+
+// 🎤 Speech Recognition
+function startListening() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+        alert("Speech Recognition not supported");
+        return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+
+    recognition.start();
+
+    recognition.onstart = () => {
+        inputField.placeholder = "Listening...";
+    };
+
+    recognition.onresult = (event) => {
+        inputField.value = event.results[0][0].transcript;
+    };
+
+    recognition.onend = () => {
+        inputField.placeholder = "Type or speak...";
+    };
+}
+
+// 📤 Send Message
+async function sendMessage() {
+    const message = inputField.value.trim();
+    if (!message) return;
+
+    chatBox.innerHTML += `<div class="user-msg">${message}</div>`;
+    inputField.value = "";
+
+    chatBox.innerHTML += `<div class="ai-msg" id="loading">Thinking...</div>`;
+
+    try {
+        const response = await fetch("/generate", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ prompt: message })
+        });
+
+        const data = await response.json();
+
+        document.getElementById("loading").remove();
+
+        if (data.response) {
+            chatBox.innerHTML += `<div class="ai-msg">${data.response}</div>`;
+            speakText(data.response);
+        } else {
+            chatBox.innerHTML += `<div class="error-msg">${data.error}</div>`;
+        }
+
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+    } catch (error) {
+        document.getElementById("loading").remove();
+        chatBox.innerHTML += `<div class="error-msg">Server error</div>`;
+    }
+}
+
+// 🔊 Text to Speech
+function speakText(text) {
+    const speech = new SpeechSynthesisUtterance(text);
+    speech.lang = "en-US";
+    window.speechSynthesis.speak(speech);
+}
+</script>
+
+</body>
+</html>
